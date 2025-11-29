@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { HashRouter, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -5,6 +6,7 @@ import { CartProvider } from './contexts/CartContext';
 import { WishlistProvider } from './contexts/WishlistContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
@@ -27,10 +29,11 @@ import ContactPage from './components/pages/ContactPage';
 import FAQPage from './components/pages/FAQPage';
 import AccountPage from './components/pages/AccountPage';
 import LoyaltyPage from './components/pages/LoyaltyPage';
+import ShareStoryPage from './components/pages/ShareStoryPage';
+import OrderSuccessPage from './components/pages/OrderSuccessPage';
 
 // Admin Components
 import AdminLayout from './components/admin/AdminLayout';
-import { NotificationProvider } from './contexts/NotificationContext';
 
 const pageVariants = {
   initial: {
@@ -112,6 +115,11 @@ const AnimatedRoutes = () => {
                         <PageWrapper><CheckoutPage /></PageWrapper>
                     </ProtectedRoute>
                 } />
+                <Route path="/order-success" element={
+                    <ProtectedRoute>
+                        <PageWrapper><OrderSuccessPage /></PageWrapper>
+                    </ProtectedRoute>
+                } />
                 <Route path="/policy" element={<PageWrapper><PolicyPage /></PageWrapper>} />
                 <Route path="/wishlist" element={<PageWrapper><WishlistPage /></PageWrapper>} />
                 <Route path="/login" element={<PageWrapper><LoginPage /></PageWrapper>} />
@@ -119,6 +127,7 @@ const AnimatedRoutes = () => {
                 <Route path="/contact" element={<PageWrapper><ContactPage /></PageWrapper>} />
                 <Route path="/faq" element={<PageWrapper><FAQPage /></PageWrapper>} />
                 <Route path="/loyalty" element={<PageWrapper><LoyaltyPage /></PageWrapper>} />
+                <Route path="/share-story" element={<PageWrapper><ShareStoryPage /></PageWrapper>} />
                 <Route path="/account" element={
                     <ProtectedRoute>
                         <PageWrapper><AccountPage /></PageWrapper>
@@ -158,29 +167,29 @@ function App() {
   
   return (
     <AuthProvider>
-      <DataProvider>
-        <NotificationProvider>
-        <CartProvider>
-            <WishlistProvider>
-            <HashRouter>
-                <div className="bg-brand-light font-sans text-brand-dark min-h-dynamic-screen flex flex-col w-full overflow-x-hidden">
-                    <Routes>
-                        {/* Admin Routes - The '/*' is CRITICAL for nested routes in AdminLayout */}
-                        <Route path="/admin/*" element={
-                            <ProtectedAdminRoute>
-                                <AdminLayout />
-                            </ProtectedAdminRoute>
-                        } />
+      <NotificationProvider>
+        <DataProvider>
+            <CartProvider>
+                <WishlistProvider>
+                <HashRouter>
+                    <div className="bg-brand-light font-sans text-brand-dark min-h-dynamic-screen flex flex-col w-full overflow-x-hidden">
+                        <Routes>
+                            {/* Admin Routes - The '/*' is CRITICAL for nested routes in AdminLayout */}
+                            <Route path="/admin/*" element={
+                                <ProtectedAdminRoute>
+                                    <AdminLayout />
+                                </ProtectedAdminRoute>
+                            } />
 
-                        {/* Customer Routes */}
-                        <Route path="/*" element={<MainLayout />} />
-                    </Routes>
-                </div>
-            </HashRouter>
-            </WishlistProvider>
-        </CartProvider>
-        </NotificationProvider>
-      </DataProvider>
+                            {/* Customer Routes */}
+                            <Route path="/*" element={<MainLayout />} />
+                        </Routes>
+                    </div>
+                </HashRouter>
+                </WishlistProvider>
+            </CartProvider>
+        </DataProvider>
+      </NotificationProvider>
     </AuthProvider>
   );
 }

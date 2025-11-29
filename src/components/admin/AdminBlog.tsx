@@ -1,11 +1,13 @@
-
 import React, { useState } from 'react';
 import { useData } from '../../contexts/DataContext';
+import { useNotification } from '../../contexts/NotificationContext';
 import Button from '../ui/Button';
-
+import ImageUpload from '../ui/ImageUpload';
+import ConfirmModal from '../ui/ConfirmModal';
 
 const AdminBlog: React.FC = () => {
     const { blogPosts, addBlogPost, deleteBlogPost } = useData();
+    const { showNotification } = useNotification();
     const [isEditing, setIsEditing] = useState(false);
     const [currentPost, setCurrentPost] = useState({
         title: '',
@@ -15,6 +17,9 @@ const AdminBlog: React.FC = () => {
         content: '',
         date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     });
+
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [deleteId, setDeleteId] = useState<string | number | null>(null);
 
     const handleAddNew = () => {
         setCurrentPost({
@@ -30,13 +35,28 @@ const AdminBlog: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        await addBlogPost(currentPost);
-        setIsEditing(false);
+        try {
+            await addBlogPost(currentPost);
+            showNotification('Blog post published!', 'success');
+            setIsEditing(false);
+        } catch (error) {
+            showNotification('Failed to publish post.', 'error');
+        }
     };
 
-    const handleDelete = async (id: number | string) => {
-        if (window.confirm('Are you sure you want to delete this post?')) {
-            await deleteBlogPost(id);
+    const handleDeleteClick = (id: number | string) => {
+        setDeleteId(id);
+        setConfirmOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (deleteId) {
+            try {
+                await deleteBlogPost(deleteId);
+                showNotification('Post deleted.', 'info');
+            } catch (error) {
+                showNotification('Failed to delete post.', 'error');
+            }
         }
     };
 
@@ -55,8 +75,12 @@ const AdminBlog: React.FC = () => {
                         <input name="title" value={currentPost.title} onChange={handleInputChange} className="mt-1 block w-full border rounded-md p-2" required />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Image URL</label>
-                        <input name="imageUrl" value={currentPost.imageUrl} onChange={handleInputChange} className="mt-1 block w-full border rounded-md p-2" required />
+                         <ImageUpload 
+                            label="Cover Image" 
+                            value={currentPost.imageUrl} 
+                            onChange={(url) => setCurrentPost(prev => ({ ...prev, imageUrl: url }))}
+                            folder="blog"
+                        />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Author</label>
@@ -95,14 +119,25 @@ const AdminBlog: React.FC = () => {
                             <h3 className="font-bold text-lg mb-1 truncate">{post.title}</h3>
                             <p className="text-sm text-gray-500 mb-2">{post.date}</p>
                             <p className="text-gray-600 text-sm line-clamp-2 mb-4">{post.excerpt}</p>
-                            <button onClick={() => handleDelete(post.id)} className="text-red-600 hover:text-red-800 text-sm font-medium">Delete Post</button>
+                            <button onClick={() => handleDeleteClick(post.id)} className="text-red-600 hover:text-red-800 text-sm font-medium">Delete Post</button>
                         </div>
                     </div>
                 ))}
             </div>
             {blogPosts.length === 0 && (
-                <div className="text-center py-12 text-gray-500">No blog posts found. Start writing!</div>
+                <div className="text-center py-12 text-gray-500 border-2 border-dashed border-gray-300 rounded-lg">
+                    <p className="mb-4">No blog posts found.</p>
+                    <Button onClick={handleAddNew} variant="outline">Create Your First Post</Button>
+                </div>
             )}
+
+            <ConfirmModal 
+                isOpen={confirmOpen}
+                onClose={() => setConfirmOpen(false)}
+                onConfirm={confirmDelete}
+                title="Delete Post"
+                message="Are you sure you want to delete this blog post?"
+            />
         </div>
     );
 };

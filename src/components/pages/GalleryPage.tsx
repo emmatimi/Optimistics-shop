@@ -1,8 +1,8 @@
 
 import React from 'react';
-// FIX: Import `Variants` type from `framer-motion` to resolve type error.
-import { motion, type Variants } from 'framer-motion';
-import { GALLERY_IMAGES } from '../../constants';
+import { motion } from 'framer-motion';
+import { useData } from '../../contexts/DataContext';
+import Button from '../ui/Button';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -14,20 +14,21 @@ const containerVariants = {
   }
 };
 
-// FIX: Add `Variants` type to ensure compatibility with framer-motion.
-const itemVariants: Variants = {
+const itemVariants = {
   hidden: { y: 20, opacity: 0, scale: 0.9 },
   visible: {
     y: 0,
     opacity: 1,
     scale: 1,
-    transition: { type: 'spring', stiffness: 100 }
+    transition: { type: 'spring' as const, stiffness: 100 }
   }
 };
 
 const GalleryPage: React.FC = () => {
+    const { galleryImages } = useData();
+
     return (
-        <div className="bg-brand-light min-h-screen">
+        <div className="bg-brand-light min-h-screen pb-16">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 <div className="text-center mb-12">
                     <motion.h1 
@@ -48,32 +49,50 @@ const GalleryPage: React.FC = () => {
                 </div>
 
                 <motion.div
-                    className="grid grid-cols-1 md:grid-cols-2 gap-8"
+                    className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16"
                     variants={containerVariants}
                     initial="hidden"
                     animate="visible"
                 >
-                    {GALLERY_IMAGES.map((image) => (
-                        <motion.div 
-                            key={image.id} 
-                            className="bg-white rounded-lg shadow-lg overflow-hidden"
-                            variants={itemVariants}
-                        >
-                            <div className="grid grid-cols-2">
-                                <div className="relative">
-                                    <img src={image.beforeUrl} alt="Before" className="w-full h-full object-cover"/>
-                                    <span className="absolute top-2 left-2 bg-black/50 text-white text-xs font-semibold px-2 py-1 rounded">BEFORE</span>
+                    {galleryImages.length > 0 ? (
+                        galleryImages.map((image) => (
+                            <motion.div 
+                                key={image.id} 
+                                className="bg-white rounded-lg shadow-lg overflow-hidden"
+                                variants={itemVariants}
+                            >
+                                <div className="grid grid-cols-2">
+                                    <div className="relative">
+                                        <img src={image.beforeUrl} alt="Before" className="w-full h-full object-cover aspect-[4/3]"/>
+                                        <span className="absolute top-2 left-2 bg-black/50 text-white text-xs font-semibold px-2 py-1 rounded">BEFORE</span>
+                                    </div>
+                                    <div className="relative">
+                                        <img src={image.afterUrl} alt="After" className="w-full h-full object-cover aspect-[4/3]"/>
+                                        <span className="absolute top-2 left-2 bg-brand-primary text-white text-xs font-semibold px-2 py-1 rounded">AFTER</span>
+                                    </div>
                                 </div>
-                                 <div className="relative">
-                                    <img src={image.afterUrl} alt="After" className="w-full h-full object-cover"/>
-                                    <span className="absolute top-2 left-2 bg-brand-primary text-white text-xs font-semibold px-2 py-1 rounded">AFTER</span>
+                                <div className="p-4 text-center bg-brand-secondary">
+                                    <p className="font-semibold text-brand-dark">{image.description}</p>
                                 </div>
-                            </div>
-                            <div className="p-4 text-center bg-brand-secondary">
-                                <p className="font-semibold text-brand-dark">{image.description}</p>
-                            </div>
-                        </motion.div>
-                    ))}
+                            </motion.div>
+                        ))
+                    ) : (
+                        <div className="col-span-full text-center py-10 text-gray-500">
+                            <p>No results available to display at the moment.</p>
+                        </div>
+                    )}
+                </motion.div>
+
+                {/* Call to Action */}
+                <motion.div 
+                    className="text-center bg-brand-secondary/30 p-10 rounded-xl max-w-2xl mx-auto"
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                >
+                    <h2 className="text-2xl font-serif font-bold text-brand-dark mb-4">Show off your glow!</h2>
+                    <p className="text-gray-600 mb-6">Have before and after photos? Submit them to be featured in our gallery and help others see what's possible.</p>
+                    <Button to="/share-story">Submit Your Results</Button>
                 </motion.div>
             </div>
         </div>

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useData } from '../../contexts/DataContext';
 import { motion } from 'framer-motion';
@@ -21,10 +20,11 @@ const StatCard: React.FC<{ title: string, value: string | number, color: string,
 );
 
 const AdminDashboard: React.FC = () => {
-    const { products, orders } = useData();
+    const { products, orders, submissions } = useData();
 
     const totalRevenue = orders.reduce((acc, order) => acc + order.total, 0);
     const pendingOrders = orders.filter(o => o.status === 'Processing').length;
+    const pendingStories = submissions.filter(s => s.status === 'pending').length;
 
     return (
         <div className="space-y-8">
@@ -47,9 +47,9 @@ const AdminDashboard: React.FC = () => {
                     color="#F59E0B"
                 />
                 <StatCard 
-                    title="Total Products" 
-                    value={products.length} 
-                    color="#3B82F6"
+                    title="Inbox (Stories)" 
+                    value={pendingStories} 
+                    color="#8B5CF6"
                 />
             </div>
 

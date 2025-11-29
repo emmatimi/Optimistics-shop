@@ -8,6 +8,13 @@ import Button from '../ui/Button';
 import { useNotification } from '../../contexts/NotificationContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// Declare MonnifySDK on window to satisfy TypeScript
+declare global {
+    interface Window {
+        MonnifySDK: any;
+    }
+}
+
 interface InputFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
     label: string;
     id: string;
@@ -26,7 +33,6 @@ const InputField: React.FC<InputFieldProps> = ({ label, id, fullWidth = false, .
     </div>
 );
 
-
 const CheckoutPage: React.FC = () => {
     const { cartItems, cartTotal, clearCart } = useCart();
     const { user } = useAuth();
@@ -39,18 +45,21 @@ const CheckoutPage: React.FC = () => {
     const [lastName, setLastName] = useState('');
     const [address, setAddress] = useState('');
     const [city, setCity] = useState('');
+    const [state, setState] = useState('');
+    const [zip, setZip] = useState('');
+    const [country, setCountry] = useState('Nigeria');
 
     // Loyalty State
     const [useLoyalty, setUseLoyalty] = useState(false);
     const [pointsToRedeem, setPointsToRedeem] = useState(0);
 
     const availablePoints = user?.loyaltyPoints || 0;
-    // Cap redeemable points at the total cart value (since 1 point = 1 Naira)
-    // or the user's max points, whichever is lower.
     const maxRedeemable = Math.min(availablePoints, cartTotal);
-    
     const discountAmount = useLoyalty ? pointsToRedeem : 0;
-    const finalTotal = cartTotal - discountAmount;
+    const finalTotal = Math.max(0, cartTotal - discountAmount); // Ensure never negative
+
+    // Generate Order ID early for reference
+    const [currentOrderId] = useState(`ORD-${Math.floor(Math.random() * 1000000)}`);
 
     useEffect(() => {
         if(user) {
@@ -60,11 +69,23 @@ const CheckoutPage: React.FC = () => {
         }
     }, [user]);
 
-    const handleCheckout = (e: React.FormEvent) => {
-        e.preventDefault();
+    // Load Monnify Script Dynamically
+    useEffect(() => {
+        const script = document.createElement('script');
+        script.src = "https://sdk.monnify.com/plugin/monnify.js";
+        script.async = true;
+        document.body.appendChild(script);
+
+        return () => {
+            document.body.removeChild(script);
+        }
+    }, []);
+
+    const handleSuccessPayment = (response: any) => {
+        console.log("Monnify Success:", response);
         
         const newOrder = {
-            id: `ORD-${Math.floor(Math.random() * 100000)}`,
+            id: currentOrderId,
             userId: user?.id,
             customerName: `${firstName} ${lastName}`,
             customerEmail: email,
@@ -72,15 +93,70 @@ const CheckoutPage: React.FC = () => {
             total: finalTotal,
             status: 'Processing' as const,
             items: cartItems,
-            shippingAddress: `${address}, ${city}`,
-            pointsRedeemed: discountAmount, // Store points used
+            shippingAddress: `${address}, ${city}, ${state}`,
+            pointsRedeemed: discountAmount,
             discountApplied: discountAmount
         };
 
         addOrder(newOrder);
-        showNotification('Order placed successfully! Thank you for shopping with us.', 'success');
         clearCart();
-        navigate('/account');
+        navigate('/order-success', { state: { orderId: currentOrderId } });
+    };
+
+    const handleClosePayment = () => {
+        showNotification('Payment cancelled. You can try again.', 'info');
+    };
+
+    const handleFormSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        // Basic Validation
+        if (!email || !firstName || !lastName || !address || !city) {
+            showNotification('Please fill in all required shipping fields.', 'error');
+            return;
+        }
+
+        if (finalTotal <= 0) {
+            showNotification('Order total must be greater than 0.', 'error');
+            return;
+        }
+
+        const apiKey = (import.meta as any).env.VITE_MONNIFY_API_KEY;
+        const contractCode = (import.meta as any).env.VITE_MONNIFY_CONTRACT_CODE;
+
+        // DEBUGGING LOGS (Check console F12 if payment fails)
+        console.log("Initializing Monnify with:", {
+            apiKey: apiKey ? "Present" : "Missing",
+            contractCode: contractCode ? "Present" : "Missing",
+            amount: finalTotal,
+            email
+        });
+
+        if (!apiKey || !contractCode) {
+            showNotification('Payment gateway configuration missing. Check .env file.', 'error');
+            return;
+        }
+
+        if (window.MonnifySDK) {
+            window.MonnifySDK.initialize({
+                amount: finalTotal,
+                currency: "NGN",
+                reference: `${currentOrderId}-${Date.now()}`,
+                customerName: `${firstName} ${lastName}`,
+                customerEmail: email,
+                apiKey: apiKey,
+                contractCode: contractCode,
+                paymentDescription: `Order ${currentOrderId}`,
+                isTestMode: true, // TODO: Set to false if using Live Keys
+                metadata: {
+                    "name": `${firstName} ${lastName}`,
+                },
+                onComplete: handleSuccessPayment,
+                onClose: handleClosePayment
+            });
+        } else {
+            showNotification('Payment gateway failed to load. Please refresh and try again.', 'error');
+        }
     };
 
     if (cartItems.length === 0) {
@@ -96,9 +172,9 @@ const CheckoutPage: React.FC = () => {
         <div className="bg-brand-light min-h-screen py-12">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <h1 className="text-3xl font-serif font-bold text-brand-dark mb-8 text-center">Checkout</h1>
-                <form onSubmit={handleCheckout}>
+                <form onSubmit={handleFormSubmit}>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        {/* Shipping and Payment Forms */}
+                        {/* Shipping Forms */}
                         <div className="md:col-span-2 bg-white p-8 rounded-lg shadow-md">
                             <h2 className="text-xl font-semibold mb-6">Shipping Information</h2>
                             <div className="grid grid-cols-2 gap-6">
@@ -144,17 +220,37 @@ const CheckoutPage: React.FC = () => {
                                     onChange={(e) => setCity(e.target.value)}
                                     required 
                                 />
-                                <InputField label="State / Province" id="state" type="text" required />
-                                <InputField label="Zip / Postal Code" id="zip" type="text" required />
-                                <InputField label="Country" id="country" type="text" required />
+                                <InputField 
+                                    label="State / Province" 
+                                    id="state" 
+                                    type="text" 
+                                    value={state} 
+                                    onChange={(e) => setState(e.target.value)}
+                                    required 
+                                />
+                                <InputField 
+                                    label="Zip / Postal Code" 
+                                    id="zip" 
+                                    type="text" 
+                                    value={zip} 
+                                    onChange={(e) => setZip(e.target.value)}
+                                    required 
+                                />
+                                <InputField 
+                                    label="Country" 
+                                    id="country" 
+                                    type="text" 
+                                    value={country} 
+                                    onChange={(e) => setCountry(e.target.value)}
+                                    required 
+                                />
                             </div>
 
-                            <h2 className="text-xl font-semibold mt-10 mb-6">Payment Details</h2>
-                            <div className="grid grid-cols-2 gap-6">
-                                <InputField label="Card Number" id="cardNumber" type="text" placeholder="**** **** **** ****" required fullWidth />
-                                <InputField label="Name on Card" id="cardName" type="text" required fullWidth />
-                                <InputField label="Expiration Date (MM/YY)" id="expiry" type="text" placeholder="MM/YY" required />
-                                <InputField label="CVC" id="cvc" type="text" placeholder="123" required />
+                            <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                                <h3 className="font-semibold text-blue-800 mb-2">Payment Method</h3>
+                                <p className="text-sm text-blue-600">
+                                    You will be redirected to the secure <strong>Monnify</strong> gateway to complete your payment via Card or Bank Transfer.
+                                </p>
                             </div>
                         </div>
 
@@ -246,8 +342,11 @@ const CheckoutPage: React.FC = () => {
                                     </div>
                                 </div>
                                 <Button type="submit" variant="primary" className="w-full mt-6">
-                                    Place Order
+                                    Pay {finalTotal.toLocaleString('en-NG', { style: 'currency', currency: 'NGN' })}
                                 </Button>
+                                <div className="mt-4 flex justify-center">
+                                    <img src="https://monnify.com/images/logo.svg" alt="Secured by Monnify" className="h-6 opacity-60" />
+                                </div>
                             </div>
                         </div>
                     </div>

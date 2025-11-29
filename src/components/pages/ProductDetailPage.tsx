@@ -7,18 +7,31 @@ import Button from '../ui/Button';
 import StarRating from '../ui/StarRating';
 import { useCart } from '../../contexts/CartContext';
 import { useWishlist } from '../../contexts/WishlistContext';
+import { useNotification } from '../../contexts/NotificationContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 type Tab = 'description' | 'ingredients' | 'usage';
 
 const ProductDetailPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
-    const { products } = useData();
+    const { products, addProductReview } = useData();
     const product = products.find(p => p.id === id);
 
     const [quantity, setQuantity] = useState(1);
     const [activeTab, setActiveTab] = useState<Tab>('description');
     const [mainImage, setMainImage] = useState(product?.imageUrl);
     const [selectedSize, setSelectedSize] = useState(product?.size || '');
+    
+    // Review Form State
+    const [rating, setRating] = useState(5);
+    const [comment, setComment] = useState('');
+    const [reviewerName, setReviewerName] = useState('');
+    const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+    const { addToCart } = useCart();
+    const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
+    const { showNotification } = useNotification();
+    const { user } = useAuth();
     
     useEffect(() => {
         if (product) {
@@ -28,9 +41,6 @@ const ProductDetailPage: React.FC = () => {
         window.scrollTo(0, 0);
     }, [product]);
 
-    const { addToCart } = useCart();
-    const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
-    
     if (!product) {
         return <div className="text-center py-20">Product not found.</div>;
     }
@@ -56,6 +66,29 @@ const ProductDetailPage: React.FC = () => {
             addToWishlist(product.id);
         }
     };
+
+    const handleSubmitReview = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSubmittingReview(true);
+        try {
+            const newReview = {
+                id: Date.now(),
+                author: reviewerName || user?.name || 'Anonymous',
+                rating: rating,
+                comment: comment,
+                date: new Date().toLocaleDateString()
+            };
+            await addProductReview(product.id, newReview);
+            showNotification('Review submitted successfully!', 'success');
+            setComment('');
+            setReviewerName('');
+            setRating(5);
+        } catch (error) {
+            showNotification('Failed to submit review. Try again.', 'error');
+        } finally {
+            setIsSubmittingReview(false);
+        }
+    }
 
     const TabButton: React.FC<{tabName: Tab, label: string}> = ({tabName, label}) => (
         <button
@@ -203,21 +236,73 @@ const ProductDetailPage: React.FC = () => {
                 </div>
                 
                 {/* Reviews Section */}
-                <div id="reviews" className="md:col-span-2 order-3">
-                     <h2 className="text-2xl font-serif font-bold text-brand-dark mb-6">Customer Reviews</h2>
-                     <div className="space-y-6">
-                        {product.reviews.length > 0 ? product.reviews.map(review => (
-                            <div key={review.id} className="bg-white p-6 rounded-lg shadow-sm border">
-                                <div className="flex justify-between items-center mb-2">
-                                    <p className="font-semibold">{review.author}</p>
-                                    <span className="text-sm text-gray-500">{review.date}</span>
+                <div id="reviews" className="md:col-span-5 order-3">
+                     <div className="grid md:grid-cols-2 gap-12">
+                        {/* List Reviews */}
+                        <div>
+                             <h2 className="text-2xl font-serif font-bold text-brand-dark mb-6">Customer Reviews</h2>
+                             <div className="space-y-6">
+                                {product.reviews.length > 0 ? product.reviews.map((review, i) => (
+                                    <div key={i} className="bg-white p-6 rounded-lg shadow-sm border">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <p className="font-semibold">{review.author}</p>
+                                            <span className="text-sm text-gray-500">{review.date}</span>
+                                        </div>
+                                        <StarRating rating={review.rating} />
+                                        <p className="text-gray-700 mt-2">{review.comment}</p>
+                                    </div>
+                                )) : (
+                                    <p className="text-gray-600">No reviews yet. Be the first to share your thoughts!</p>
+                                )}
+                             </div>
+                        </div>
+
+                        {/* Write Review Form */}
+                        <div className="bg-brand-secondary/30 p-8 rounded-lg h-fit">
+                            <h3 className="text-xl font-bold text-brand-dark mb-4">Write a Review</h3>
+                            <form onSubmit={handleSubmitReview} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Your Name</label>
+                                    <input 
+                                        type="text" 
+                                        value={reviewerName}
+                                        onChange={(e) => setReviewerName(e.target.value)}
+                                        className="mt-1 w-full border rounded-md p-2"
+                                        placeholder={user ? user.name : "Enter your name"}
+                                        required
+                                    />
                                 </div>
-                                <StarRating rating={review.rating} />
-                                <p className="text-gray-700 mt-2">{review.comment}</p>
-                            </div>
-                        )) : (
-                            <p className="text-gray-600">No reviews yet. Be the first to share your thoughts!</p>
-                        )}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Rating</label>
+                                    <div className="flex space-x-1 mt-1">
+                                        {[1, 2, 3, 4, 5].map((star) => (
+                                            <button 
+                                                key={star} 
+                                                type="button" 
+                                                onClick={() => setRating(star)}
+                                                className={`text-2xl focus:outline-none ${star <= rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                                            >
+                                                ★
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Review</label>
+                                    <textarea 
+                                        rows={4}
+                                        value={comment}
+                                        onChange={(e) => setComment(e.target.value)}
+                                        className="mt-1 w-full border rounded-md p-2"
+                                        placeholder="How was the product?"
+                                        required
+                                    />
+                                </div>
+                                <Button type="submit" disabled={isSubmittingReview} className="w-full">
+                                    {isSubmittingReview ? "Submitting..." : "Submit Review"}
+                                </Button>
+                            </form>
+                        </div>
                      </div>
                 </div>
 

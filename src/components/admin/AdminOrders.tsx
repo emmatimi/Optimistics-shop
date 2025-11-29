@@ -1,18 +1,37 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { useData } from '../../contexts/DataContext';
+import { useNotification } from '../../contexts/NotificationContext';
 import type { Order } from '../../types';
+import ConfirmModal from '../ui/ConfirmModal';
 
 const AdminOrders: React.FC = () => {
     const { orders, updateOrderStatus, deleteOrder } = useData();
+    const { showNotification } = useNotification();
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [deleteId, setDeleteId] = useState<string | null>(null);
 
-    const handleStatusChange = (id: string, newStatus: string) => {
-        updateOrderStatus(id, newStatus as Order['status']);
+    const handleStatusChange = async (id: string, newStatus: string) => {
+        try {
+            await updateOrderStatus(id, newStatus as Order['status']);
+            showNotification(`Order status updated to ${newStatus}`, 'success');
+        } catch (error) {
+            showNotification('Failed to update status.', 'error');
+        }
     };
 
-    const handleDelete = (id: string) => {
-        if(window.confirm('Delete this order record?')) {
-            deleteOrder(id);
+    const handleDeleteClick = (id: string) => {
+        setDeleteId(id);
+        setConfirmOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (deleteId) {
+            try {
+                await deleteOrder(deleteId);
+                showNotification('Order deleted.', 'info');
+            } catch (error) {
+                showNotification('Failed to delete order.', 'error');
+            }
         }
     };
 
@@ -64,7 +83,7 @@ const AdminOrders: React.FC = () => {
                                     </select>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button onClick={() => handleDelete(order.id)} className="text-red-600 hover:text-red-900">Delete</button>
+                                    <button onClick={() => handleDeleteClick(order.id)} className="text-red-600 hover:text-red-900">Delete</button>
                                 </td>
                             </tr>
                         ))}
@@ -76,6 +95,14 @@ const AdminOrders: React.FC = () => {
                     </tbody>
                 </table>
             </div>
+
+            <ConfirmModal 
+                isOpen={confirmOpen}
+                onClose={() => setConfirmOpen(false)}
+                onConfirm={confirmDelete}
+                title="Delete Order"
+                message="Are you sure you want to delete this order record? This action cannot be undone."
+            />
         </div>
     );
 };

@@ -1,5 +1,4 @@
-
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect} from 'react';
 import type { ReactNode } from 'react';
 import type { User } from '../types';
 import { auth, db } from '../firebase';
@@ -90,8 +89,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const loginWithGoogle = async (): Promise<boolean> => {
     try {
         const provider = new GoogleAuthProvider();
+        
+        // This log helps debug if the auth instance is configured correctly
+        console.log("Starting Google Sign In...");
+        
         const result = await signInWithPopup(auth, provider);
         const firebaseUser = result.user;
+
+        console.log("Google Sign In Successful:", firebaseUser.email);
 
         // Check if user exists in Firestore, if not, create them
         const userDocRef = doc(db, 'users', firebaseUser.uid);
@@ -106,8 +111,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             });
         }
         return true;
-    } catch (error) {
-        console.error("Google Login failed:", error);
+    } catch (error: any) {
+        // Detailed error logging for the developer
+        console.error("Google Login FAILED details:");
+        console.error("Code:", error.code);
+        console.error("Message:", error.message);
+        
+        if (error.code === 'auth/operation-not-allowed') {
+            console.warn("SOLUTION: Go to Firebase Console -> Authentication -> Sign-in method and Enable 'Google'.");
+        } else if (error.code === 'auth/unauthorized-domain') {
+            console.warn("SOLUTION: Go to Firebase Console -> Authentication -> Settings -> Authorized Domains and add 'localhost'.");
+        } else if (error.code === 'auth/popup-closed-by-user') {
+            console.warn("User closed the popup before finishing sign in.");
+        }
+
         return false;
     }
   };

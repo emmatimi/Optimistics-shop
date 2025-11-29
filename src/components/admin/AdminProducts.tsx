@@ -1,27 +1,30 @@
-
 import React, { useState } from 'react';
 import { useData } from '../../contexts/DataContext';
+import { useNotification } from '../../contexts/NotificationContext';
 import Button from '../ui/Button';
 import type { Product } from '../../types';
-
+import ImageUpload from '../ui/ImageUpload';
+import ConfirmModal from '../ui/ConfirmModal';
 
 const AdminProducts: React.FC = () => {
     const { products, addProduct, updateProduct, deleteProduct } = useData();
+    const { showNotification } = useNotification();
     const [isEditing, setIsEditing] = useState(false);
-    // Use any for form state to handle string inputs for array fields temporarily
     const [currentProduct, setCurrentProduct] = useState<any>({});
+    
+    // Confirm Modal State
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [deleteId, setDeleteId] = useState<string | null>(null);
 
-    // Simple ID generator
     const generateId = () => Math.random().toString(36).substr(2, 9);
 
     const handleEdit = (product: Product) => {
-        // Convert array fields to strings for the input form
         setCurrentProduct({
             ...product,
             ingredients: product.ingredients ? product.ingredients.join(', ') : '',
             benefits: product.benefits ? product.benefits.join(', ') : '',
             tags: product.tags ? product.tags.join(', ') : '',
-            categories: product.categories || ['Skincare'], // Default to array
+            categories: product.categories || ['Skincare'],
             isBestseller: product.isBestseller || false
         });
         setIsEditing(true);
@@ -47,13 +50,23 @@ const AdminProducts: React.FC = () => {
         setIsEditing(true);
     };
 
-    const handleDelete = (id: string) => {
-        if(window.confirm('Are you sure you want to delete this product?')) {
-            deleteProduct(id);
+    const handleDeleteClick = (id: string) => {
+        setDeleteId(id);
+        setConfirmOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (deleteId) {
+            try {
+                await deleteProduct(deleteId);
+                showNotification('Product deleted successfully.', 'success');
+            } catch (error) {
+                showNotification('Failed to delete product.', 'error');
+            }
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
         const productData: Product = {
@@ -65,14 +78,21 @@ const AdminProducts: React.FC = () => {
             images: currentProduct.imageUrl ? [currentProduct.imageUrl] : []
         };
 
-        if (currentProduct.id) {
-            updateProduct(productData);
-        } else {
-            addProduct({ ...productData, id: generateId() });
+        try {
+            if (currentProduct.id) {
+                await updateProduct(productData);
+                showNotification('Product updated successfully!', 'success');
+            } else {
+                await addProduct({ ...productData, id: generateId() });
+                showNotification('New product created!', 'success');
+            }
+            setIsEditing(false);
+        } catch (error) {
+            showNotification('Failed to save product.', 'error');
         }
-        setIsEditing(false);
     };
 
+    // ... (handleInputChange and handleCheckboxChange remain same)
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setCurrentProduct((prev: any) => ({ ...prev, [name]: value }));
@@ -85,9 +105,11 @@ const AdminProducts: React.FC = () => {
 
     if (isEditing) {
         return (
+            // ... (Form JSX remains mostly same)
             <div className="bg-white p-8 rounded-lg shadow-md max-w-3xl mx-auto">
                 <h2 className="text-2xl font-bold mb-6">{currentProduct.id ? 'Edit Product' : 'Add New Product'}</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* ... Inputs ... */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Product Name</label>
@@ -114,8 +136,12 @@ const AdminProducts: React.FC = () => {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Image URL</label>
-                        <input name="imageUrl" value={currentProduct.imageUrl} onChange={handleInputChange} className="mt-1 block w-full border rounded-md p-2" required />
+                        <ImageUpload 
+                            label="Product Image" 
+                            value={currentProduct.imageUrl} 
+                            onChange={(url) => setCurrentProduct((prev: any) => ({ ...prev, imageUrl: url }))}
+                            folder="products"
+                        />
                     </div>
 
                     <div>
@@ -208,13 +234,21 @@ const AdminProducts: React.FC = () => {
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <button onClick={() => handleEdit(product)} className="text-brand-primary hover:text-brand-dark mr-4">Edit</button>
-                                    <button onClick={() => handleDelete(product.id)} className="text-red-600 hover:text-red-900">Delete</button>
+                                    <button onClick={() => handleDeleteClick(product.id)} className="text-red-600 hover:text-red-900">Delete</button>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
             </div>
+
+            <ConfirmModal 
+                isOpen={confirmOpen}
+                onClose={() => setConfirmOpen(false)}
+                onConfirm={confirmDelete}
+                title="Delete Product"
+                message="Are you sure you want to delete this product? This action cannot be undone."
+            />
         </div>
     );
 };

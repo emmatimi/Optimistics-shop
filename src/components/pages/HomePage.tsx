@@ -1,9 +1,8 @@
 
 import React from 'react';
-import { motion, type Variants } from 'framer-motion';
+import { motion } from 'framer-motion';
 import Button from '../ui/Button';
 import ProductCard from '../ProductCard';
-import { TESTIMONIALS } from '../../constants';
 import { useData } from '../../contexts/DataContext';
 
 const containerVariants = {
@@ -16,12 +15,12 @@ const containerVariants = {
     }
 };
 
-const itemVariants: Variants = {
+const itemVariants = {
     hidden: { y: 20, opacity: 0 },
     visible: {
         y: 0,
         opacity: 1,
-        transition: { type: 'spring', stiffness: 100 }
+        transition: { type: 'spring' as const, stiffness: 100 }
     }
 };
 
@@ -150,29 +149,36 @@ const WhyChooseUsSection = () => (
     </section>
 );
 
-const TestimonialsSection = () => (
-    <section className="py-16 bg-brand-light">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-serif font-bold text-center text-brand-dark mb-10">What Our Customers Say</h2>
-            <motion.div
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"
-                variants={containerVariants}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, amount: 0.2 }}
-            >
-                {TESTIMONIALS.slice(0, 3).map(testimonial => (
-                    <motion.div key={testimonial.id} variants={itemVariants} className="bg-white p-6 rounded-lg shadow-md text-center">
-                        <img src={testimonial.imageUrl} alt={testimonial.name} className="w-20 h-20 rounded-full mx-auto mb-4" />
-                        <p className="text-gray-600 italic mb-4">"{testimonial.quote}"</p>
-                        <p className="font-semibold text-brand-dark">{testimonial.name}</p>
-                        <p className="text-sm text-gray-500">{testimonial.location}</p>
-                    </motion.div>
-                ))}
-            </motion.div>
-        </div>
-    </section>
-);
+const TestimonialsSection = () => {
+    const { testimonials } = useData();
+
+    return (
+        <section className="py-16 bg-brand-light">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                <h2 className="text-3xl font-serif font-bold text-center text-brand-dark mb-10">What Our Customers Say</h2>
+                <motion.div
+                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"
+                    variants={containerVariants}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, amount: 0.2 }}
+                >
+                    {testimonials.slice(0, 3).map(testimonial => (
+                        <motion.div key={testimonial.id} variants={itemVariants} className="bg-white p-6 rounded-lg shadow-md text-center">
+                            <img src={testimonial.imageUrl} alt={testimonial.name} className="w-20 h-20 rounded-full mx-auto mb-4 object-cover" />
+                            <p className="text-gray-600 italic mb-4">"{testimonial.quote}"</p>
+                            <p className="font-semibold text-brand-dark">{testimonial.name}</p>
+                            <p className="text-sm text-gray-500">{testimonial.location}</p>
+                        </motion.div>
+                    ))}
+                </motion.div>
+                <div className="text-center mt-10">
+                    <Button to="/testimonials" variant="outline">Read More Stories</Button>
+                </div>
+            </div>
+        </section>
+    );
+};
 
 const HomePage: React.FC = () => {
     return (

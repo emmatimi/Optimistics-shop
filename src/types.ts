@@ -36,7 +36,7 @@ export interface BlogPost {
 }
 
 export interface Testimonial {
-    id: number;
+    id: number | string;
     name: string;
     location: string;
     quote: string;
@@ -44,7 +44,7 @@ export interface Testimonial {
 }
 
 export interface GalleryImage {
-    id: number;
+    id: number | string;
     beforeUrl: string;
     afterUrl: string;
     description: string;
@@ -75,4 +75,16 @@ export interface Order {
     shippingAddress: string;
     pointsRedeemed?: number;
     discountApplied?: number;
+}
+//  Interface for incoming customer stories
+export interface UserSubmission {
+    id: string;
+    type: 'testimonial' | 'result';
+    customerName: string;
+    email: string;
+    content: string; 
+    imageUrl?: string; 
+    location?: string;
+    date: string;
+    status: 'pending' | 'approved' | 'rejected';
 }
