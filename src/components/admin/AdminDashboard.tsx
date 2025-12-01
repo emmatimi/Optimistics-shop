@@ -20,7 +20,7 @@ const StatCard: React.FC<{ title: string, value: string | number, color: string,
 );
 
 const AdminDashboard: React.FC = () => {
-    const { products, orders, submissions } = useData();
+    const {  orders, submissions } = useData();
 
     const totalRevenue = orders.reduce((acc, order) => acc + order.total, 0);
     const pendingOrders = orders.filter(o => o.status === 'Processing').length;
