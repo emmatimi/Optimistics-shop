@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -7,13 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import Button from '../ui/Button';
 import { useNotification } from '../../contexts/NotificationContext';
 import { motion, AnimatePresence } from 'framer-motion';
-
-// Declare MonnifySDK on window to satisfy TypeScript
-declare global {
-    interface Window {
-        MonnifySDK: any;
-    }
-}
+import { sendOrderConfirmationEmail, sendPaymentReceivedEmail } from '../../utils/emailService';
 
 interface InputFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
     label: string;
@@ -77,11 +70,13 @@ const CheckoutPage: React.FC = () => {
         document.body.appendChild(script);
 
         return () => {
-            document.body.removeChild(script);
+            if (document.body.contains(script)) {
+                document.body.removeChild(script);
+            }
         }
     }, []);
 
-    const handleSuccessPayment = (response: any) => {
+    const handleSuccessPayment = async (response: any) => {
         console.log("Monnify Success:", response);
         
         const newOrder = {
@@ -98,9 +93,22 @@ const CheckoutPage: React.FC = () => {
             discountApplied: discountAmount
         };
 
-        addOrder(newOrder);
-        clearCart();
-        navigate('/order-success', { state: { orderId: currentOrderId } });
+        try {
+            await addOrder(newOrder);
+            
+            // Email 1: Confirmation
+            await sendOrderConfirmationEmail(newOrder);
+            
+            // Email 2: Payment Receipt
+            const txRef = response.transactionReference || response.paymentReference || "N/A";
+            await sendPaymentReceivedEmail(newOrder, txRef);
+            
+            clearCart();
+            navigate('/order-success', { state: { orderId: currentOrderId } });
+        } catch (error) {
+            console.error("Order processing error", error);
+            showNotification('Payment successful, but order creation failed. Contact support.', 'error');
+        }
     };
 
     const handleClosePayment = () => {
@@ -116,29 +124,21 @@ const CheckoutPage: React.FC = () => {
             return;
         }
 
-        if (finalTotal <= 0) {
-            showNotification('Order total must be greater than 0.', 'error');
-            return;
-        }
-
         const apiKey = (import.meta as any).env.VITE_MONNIFY_API_KEY;
         const contractCode = (import.meta as any).env.VITE_MONNIFY_CONTRACT_CODE;
-
-        // DEBUGGING LOGS (Check console F12 if payment fails)
-        console.log("Initializing Monnify with:", {
-            apiKey: apiKey ? "Present" : "Missing",
-            contractCode: contractCode ? "Present" : "Missing",
-            amount: finalTotal,
-            email
-        });
 
         if (!apiKey || !contractCode) {
             showNotification('Payment gateway configuration missing. Check .env file.', 'error');
             return;
         }
 
-        if (window.MonnifySDK) {
-            window.MonnifySDK.initialize({
+        // Automatic detection of Test Mode vs Production Mode
+        const isTestMode = apiKey.startsWith("MK_TEST");
+
+        console.log("Initializing Monnify...", { mode: isTestMode ? "TEST" : "LIVE", amount: finalTotal });
+
+        if ((window as any).MonnifySDK) {
+            (window as any).MonnifySDK.initialize({
                 amount: finalTotal,
                 currency: "NGN",
                 reference: `${currentOrderId}-${Date.now()}`,
@@ -147,7 +147,7 @@ const CheckoutPage: React.FC = () => {
                 apiKey: apiKey,
                 contractCode: contractCode,
                 paymentDescription: `Order ${currentOrderId}`,
-                isTestMode: true, // TODO: Set to false if using Live Keys
+                isTestMode: isTestMode, 
                 metadata: {
                     "name": `${firstName} ${lastName}`,
                 },
@@ -178,79 +178,18 @@ const CheckoutPage: React.FC = () => {
                         <div className="md:col-span-2 bg-white p-8 rounded-lg shadow-md">
                             <h2 className="text-xl font-semibold mb-6">Shipping Information</h2>
                             <div className="grid grid-cols-2 gap-6">
-                                <InputField 
-                                    label="First Name" 
-                                    id="firstName" 
-                                    type="text" 
-                                    value={firstName}
-                                    onChange={(e) => setFirstName(e.target.value)}
-                                    required 
-                                />
-                                <InputField 
-                                    label="Last Name" 
-                                    id="lastName" 
-                                    type="text" 
-                                    value={lastName}
-                                    onChange={(e) => setLastName(e.target.value)}
-                                    required 
-                                />
-                                <InputField 
-                                    label="Email Address" 
-                                    id="email" 
-                                    type="email" 
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    disabled={!!user}
-                                    required 
-                                    fullWidth 
-                                />
-                                <InputField 
-                                    label="Address" 
-                                    id="address" 
-                                    type="text" 
-                                    value={address}
-                                    onChange={(e) => setAddress(e.target.value)}
-                                    required fullWidth 
-                                />
-                                <InputField 
-                                    label="City" 
-                                    id="city" 
-                                    type="text" 
-                                    value={city}
-                                    onChange={(e) => setCity(e.target.value)}
-                                    required 
-                                />
-                                <InputField 
-                                    label="State / Province" 
-                                    id="state" 
-                                    type="text" 
-                                    value={state} 
-                                    onChange={(e) => setState(e.target.value)}
-                                    required 
-                                />
-                                <InputField 
-                                    label="Zip / Postal Code" 
-                                    id="zip" 
-                                    type="text" 
-                                    value={zip} 
-                                    onChange={(e) => setZip(e.target.value)}
-                                    required 
-                                />
-                                <InputField 
-                                    label="Country" 
-                                    id="country" 
-                                    type="text" 
-                                    value={country} 
-                                    onChange={(e) => setCountry(e.target.value)}
-                                    required 
-                                />
+                                <InputField label="First Name" id="firstName" type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                                <InputField label="Last Name" id="lastName" type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                                <InputField label="Email Address" id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={!!user} required fullWidth />
+                                <InputField label="Address" id="address" type="text" value={address} onChange={(e) => setAddress(e.target.value)} required fullWidth />
+                                <InputField label="City" id="city" type="text" value={city} onChange={(e) => setCity(e.target.value)} required />
+                                <InputField label="State" id="state" type="text" value={state} onChange={(e) => setState(e.target.value)} required />
+                                <InputField label="Zip Code" id="zip" type="text" value={zip} onChange={(e) => setZip(e.target.value)} required />
+                                <InputField label="Country" id="country" type="text" value={country} onChange={(e) => setCountry(e.target.value)} required />
                             </div>
-
                             <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-md">
                                 <h3 className="font-semibold text-blue-800 mb-2">Payment Method</h3>
-                                <p className="text-sm text-blue-600">
-                                    You will be redirected to the secure <strong>Monnify</strong> gateway to complete your payment via Card or Bank Transfer.
-                                </p>
+                                <p className="text-sm text-blue-600">You will be redirected to the secure <strong>Monnify</strong> gateway.</p>
                             </div>
                         </div>
 

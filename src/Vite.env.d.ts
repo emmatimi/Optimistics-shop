@@ -9,37 +9,18 @@ interface ImportMetaEnv {
     readonly VITE_FIREBASE_APP_ID: string
     readonly VITE_MONNIFY_API_KEY: string
     readonly VITE_MONNIFY_CONTRACT_CODE: string
+    readonly VITE_EMAILJS_SERVICE_ID: string
+    readonly VITE_EMAILJS_TEMPLATE_ID: string
+    readonly VITE_EMAILJS_PUBLIC_KEY: string
 }
 
 interface ImportMeta {
     readonly env: ImportMetaEnv
 }
 
-declare module 'react-monnify' {
-    export interface MonnifyConfig {
-        amount: number;
-        currency: string;
-        reference: string;
-        customerName: string;
-        customerEmail: string;
-        apiKey: string;
-        contractCode: string;
-        paymentDescription: string;
-        isTestMode?: boolean;
-        metadata?: object;
+// Declaration for the Monnify Global Object
+declare global {
+    interface Window {
+        MonnifySDK: any;
     }
-
-    export interface MonnifyProps {
-        config: MonnifyConfig;
-        onSuccess: (response: any) => void;
-        onClose: () => void;
-        children: React.ReactNode;
-        className?: string;
-    }
-
-    export const MonnifyButton: React.FC<MonnifyProps>;
-    // Updated signature to accept success and close callbacks
-    export const usePayWithMonnifyPayment: (config: MonnifyConfig) => { 
-        initializePayment: (onSuccess?: (response: any) => void, onClose?: () => void) => void 
-    };
 }

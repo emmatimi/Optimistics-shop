@@ -1,18 +1,15 @@
-
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-// TODO: Replace the following with your app's Firebase project configuration
-// You can find this in the Firebase Console -> Project Settings
+// These values are loaded from the .env file in your project root
 const firebaseConfig = {
-  apiKey: "AIzaSyBIZ89OoyCYUFtCBP05jdx3WIkYm4_sbLo",
-  authDomain: "optimistics-shop.firebaseapp.com",
-  projectId: "optimistics-shop",
-  storageBucket: "optimistics-shop.firebasestorage.app",
-  messagingSenderId: "801750939186",
-  appId: "1:801750939186:web:acbed6718e8fd645de6e2b",
-  measurementId: "G-LJSRQRHZHB"
+  apiKey: (import.meta as any).env.VITE_FIREBASE_API_KEY,
+  authDomain: (import.meta as any).env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: (import.meta as any).env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: (import.meta as any).env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: (import.meta as any).env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: (import.meta as any).env.VITE_FIREBASE_APP_ID
 };
 
 const app = initializeApp(firebaseConfig);

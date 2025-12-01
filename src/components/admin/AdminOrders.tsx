@@ -3,6 +3,7 @@ import { useData } from '../../contexts/DataContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import type { Order } from '../../types';
 import ConfirmModal from '../ui/ConfirmModal';
+import { sendOrderDeliveredEmail, sendOrderShippedEmail } from '../../utils/emailService';
 
 const AdminOrders: React.FC = () => {
     const { orders, updateOrderStatus, deleteOrder } = useData();
@@ -14,6 +15,20 @@ const AdminOrders: React.FC = () => {
         try {
             await updateOrderStatus(id, newStatus as Order['status']);
             showNotification(`Order status updated to ${newStatus}`, 'success');
+
+            const order = orders.find(o => o.id === id);
+            
+            if (order) {
+                // Send specific email based on status
+                if (newStatus === 'Shipped') {
+                    await sendOrderShippedEmail(order);
+                    showNotification('Shipping notification sent.', 'info');
+                } else if (newStatus === 'Delivered') {
+                    await sendOrderDeliveredEmail(order);
+                    showNotification('Delivery notification sent.', 'info');
+                }
+            }
+
         } catch (error) {
             showNotification('Failed to update status.', 'error');
         }
