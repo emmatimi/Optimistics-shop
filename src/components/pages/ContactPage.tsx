@@ -1,13 +1,45 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import Button from '../ui/Button';
+import { sendContactFormEmail } from '../../utils/emailService';
+import { useNotification } from '../../contexts/NotificationContext';
 
 const ContactPage: React.FC = () => {
-    const handleSubmit = (e: React.FormEvent) => {
+    const { showNotification } = useNotification();
+    const [formData, setFormData] = useState({
+        name: '',
+        email: '',
+        message: ''
+    });
+    const [loading, setLoading] = useState(false);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { id, value } = e.target;
+        setFormData(prev => ({ ...prev, [id]: value }));
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        alert('Thank you for your message! We will get back to you shortly.');
-        // In a real app, you would handle form submission here
+        setLoading(true);
+
+        // Basic validation
+        if (!formData.name || !formData.email || !formData.message) {
+            showNotification('Please fill in all fields.', 'error');
+            setLoading(false);
+            return;
+        }
+
+        try {
+            await sendContactFormEmail(formData.name, formData.email, formData.message);
+            showNotification('Message sent successfully! We will get back to you soon.', 'success');
+            // Clear form
+            setFormData({ name: '', email: '', message: '' });
+        } catch (error) {
+            console.error("Contact submission error:", error);
+            showNotification('Failed to send message. Please check your connection.', 'error');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -40,7 +72,7 @@ const ContactPage: React.FC = () => {
                     >
                         <h2 className="text-2xl font-semibold text-brand-dark mb-4">Contact Information</h2>
                         <p className="text-gray-700 mb-6">
-                            For any inquiries, please reach out to us through the following channels. Our team is available from 9 AM to 5 PM, Monday to Friday.
+                            For any inquiries, please reach out to us through the following channels. Our team is available from 7 AM to 10 PM, All days.
                         </p>
                         <div className="space-y-4">
                             <div className="flex items-center">
@@ -49,7 +81,7 @@ const ContactPage: React.FC = () => {
                             </div>
                             <div className="flex items-center">
                                 <span className="text-brand-primary mr-3">&#9742;</span>
-                                <a href="tel:+234123456789" className="text-gray-700 hover:text-brand-primary">+234 123 456 789</a>
+                                <a href="tel:+234123456789" className="text-gray-700 hover:text-brand-primary">+2349065388881</a>
                             </div>
                             <div className="flex items-start">
                                 <span className="text-brand-primary mr-3 mt-1">&#127968;</span>
@@ -68,18 +100,44 @@ const ContactPage: React.FC = () => {
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div>
                                 <label htmlFor="name" className="block text-sm font-medium text-gray-700">Full Name</label>
-                                <input type="text" id="name" required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-brand-primary focus:border-brand-primary" />
+                                <input 
+                                    type="text" 
+                                    id="name" 
+                                    value={formData.name}
+                                    onChange={handleChange}
+                                    required 
+                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-brand-primary focus:border-brand-primary" 
+                                    placeholder="Enter your name"
+                                />
                             </div>
                             <div>
                                 <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email Address</label>
-                                <input type="email" id="email" required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-brand-primary focus:border-brand-primary" />
+                                <input 
+                                    type="email" 
+                                    id="email" 
+                                    value={formData.email}
+                                    onChange={handleChange}
+                                    required 
+                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-brand-primary focus:border-brand-primary" 
+                                    placeholder="Enter your email"
+                                />
                             </div>
                              <div>
                                 <label htmlFor="message" className="block text-sm font-medium text-gray-700">Message</label>
-                                <textarea id="message" rows={4} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-brand-primary focus:border-brand-primary"></textarea>
+                                <textarea 
+                                    id="message" 
+                                    rows={4} 
+                                    value={formData.message}
+                                    onChange={handleChange}
+                                    required 
+                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-brand-primary focus:border-brand-primary"
+                                    placeholder="How can we help you?"
+                                ></textarea>
                             </div>
                             <div>
-                                <Button type="submit" className="w-full">Send Message</Button>
+                                <Button type="submit" className="w-full" disabled={loading}>
+                                    {loading ? 'Sending...' : 'Send Message'}
+                                </Button>
                             </div>
                         </form>
                     </motion.div>

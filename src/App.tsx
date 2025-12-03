@@ -1,7 +1,7 @@
-
 import React, { useEffect } from 'react';
 import { HashRouter, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import { HelmetProvider } from 'react-helmet-async'; // Import HelmetProvider
 import { CartProvider } from './contexts/CartContext';
 import { WishlistProvider } from './contexts/WishlistContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -166,31 +166,33 @@ function App() {
   }, []);
   
   return (
-    <AuthProvider>
-      <NotificationProvider>
-        <DataProvider>
-            <CartProvider>
-                <WishlistProvider>
-                <HashRouter>
-                    <div className="bg-brand-light font-sans text-brand-dark min-h-dynamic-screen flex flex-col w-full overflow-x-hidden">
-                        <Routes>
-                            {/* Admin Routes - The '/*' is CRITICAL for nested routes in AdminLayout */}
-                            <Route path="/admin/*" element={
-                                <ProtectedAdminRoute>
-                                    <AdminLayout />
-                                </ProtectedAdminRoute>
-                            } />
+    <HelmetProvider>
+      <AuthProvider>
+        <NotificationProvider>
+          <DataProvider>
+              <CartProvider>
+                  <WishlistProvider>
+                  <HashRouter>
+                      <div className="bg-brand-light font-sans text-brand-dark min-h-dynamic-screen flex flex-col w-full overflow-x-hidden">
+                          <Routes>
+                              {/* Admin Routes - The '/*' is CRITICAL for nested routes in AdminLayout */}
+                              <Route path="/admin/*" element={
+                                  <ProtectedAdminRoute>
+                                      <AdminLayout />
+                                  </ProtectedAdminRoute>
+                              } />
 
-                            {/* Customer Routes */}
-                            <Route path="/*" element={<MainLayout />} />
-                        </Routes>
-                    </div>
-                </HashRouter>
-                </WishlistProvider>
-            </CartProvider>
-        </DataProvider>
-      </NotificationProvider>
-    </AuthProvider>
+                              {/* Customer Routes */}
+                              <Route path="/*" element={<MainLayout />} />
+                          </Routes>
+                      </div>
+                  </HashRouter>
+                  </WishlistProvider>
+              </CartProvider>
+          </DataProvider>
+        </NotificationProvider>
+      </AuthProvider>
+    </HelmetProvider>
   );
 }
 

@@ -5,6 +5,7 @@ import Button from '../ui/Button';
 import { db } from '../../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useNotification } from '../../contexts/NotificationContext';
+import { sendSubscriptionEmail } from '../../utils/emailService';
 
 const SocialIcon: React.FC<{ href: string, children: React.ReactNode }> = ({ href, children }) => (
     <a href={href} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:text-brand-accent transition-colors">
@@ -23,15 +24,24 @@ const Footer: React.FC = () => {
 
         setLoading(true);
         try {
+            // 1. Save to Database
             await addDoc(collection(db, 'subscribers'), {
                 email: email,
                 subscribedAt: serverTimestamp()
             });
-            showNotification('Successfully subscribed to our newsletter!', 'success');
+
+            // 2. Send Welcome Email
+            await sendSubscriptionEmail(email);
+
+            showNotification('Thanks for subscribing! Check your email for a welcome discount.', 'success');
             setEmail('');
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error subscribing:", error);
-            showNotification('Failed to subscribe. Please try again.', 'error');
+            if (error.code === 'permission-denied') {
+                showNotification('Subscription failed. Please check internet or try again later.', 'error');
+            } else {
+                showNotification('Failed to subscribe. Please try again.', 'error');
+            }
         } finally {
             setLoading(false);
         }
@@ -108,3 +118,6 @@ const Footer: React.FC = () => {
 };
 
 export default Footer;
+
+
+

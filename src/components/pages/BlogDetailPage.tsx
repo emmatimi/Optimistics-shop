@@ -1,8 +1,8 @@
-
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import { motion } from 'framer-motion';
+import MetaTags from '../ui/MetaTags'; // Import
 
 const BlogDetailPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -24,6 +24,11 @@ const BlogDetailPage: React.FC = () => {
 
     return (
         <div className="bg-brand-light min-h-screen pb-16">
+            <MetaTags 
+                title={post.title} 
+                description={post.excerpt} 
+                image={post.imageUrl}
+            />
             <motion.div 
                 className="w-full h-64 md:h-96 relative"
                 initial={{ opacity: 0 }}

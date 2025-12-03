@@ -8,6 +8,7 @@ import AdminBlog from './AdminBlog';
 import AdminGallery from './AdminGallery';
 import AdminTestimonials from './AdminTestimonials';
 import AdminSubmissions from './AdminSubmissions';
+import AdminShipping from './AdminShipping'; // New Import
 
 const AdminSidebarItem: React.FC<{ to: string, children: React.ReactNode, end?: boolean }> = ({ to, children, end }) => (
     <NavLink 
@@ -41,11 +42,11 @@ const AdminLayout: React.FC = () => {
                     <p className="text-xs text-gray-500 mt-1">Optimistics Admin</p>
                 </div>
                 <nav className="p-4 space-y-2 flex-grow overflow-y-auto">
-                    {/* Absolute paths used here to ensure links work regardless of current route nesting */}
                     <AdminSidebarItem to="/admin" end>Overview</AdminSidebarItem>
-                    <AdminSidebarItem to="/admin/submissions">Inbox (Stories)</AdminSidebarItem>
-                    <AdminSidebarItem to="/admin/products">Products</AdminSidebarItem>
                     <AdminSidebarItem to="/admin/orders">Orders</AdminSidebarItem>
+                    <AdminSidebarItem to="/admin/products">Products</AdminSidebarItem>
+                    <AdminSidebarItem to="/admin/shipping">Shipping Rates</AdminSidebarItem> {/* New Link */}
+                    <AdminSidebarItem to="/admin/submissions">Inbox (Stories)</AdminSidebarItem>
                     <AdminSidebarItem to="/admin/blog">Blog</AdminSidebarItem>
                     <AdminSidebarItem to="/admin/gallery">Results</AdminSidebarItem>
                     <AdminSidebarItem to="/admin/testimonials">Testimonials</AdminSidebarItem>
@@ -80,6 +81,7 @@ const AdminLayout: React.FC = () => {
                     <Route path="gallery" element={<AdminGallery />} />
                     <Route path="testimonials" element={<AdminTestimonials />} />
                     <Route path="submissions" element={<AdminSubmissions />} />
+                    <Route path="shipping" element={<AdminShipping />} /> {/* New Route */}
                     <Route path="*" element={<Navigate to="." replace />} />
                 </Routes>
             </main>

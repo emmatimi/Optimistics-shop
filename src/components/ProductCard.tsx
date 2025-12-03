@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -45,9 +46,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     ? product.reviews.reduce((acc, review) => acc + review.rating, 0) / product.reviews.length
     : 0;
 
+  const isOutOfStock = product.inStock === false;
+
   return (
     <motion.div
-      className="bg-white rounded-lg shadow-md overflow-hidden group flex flex-col"
+      className={`bg-white rounded-lg shadow-md overflow-hidden group flex flex-col ${isOutOfStock ? 'opacity-80' : ''}`}
       whileHover={{ y: -5, boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' }}
       layout
     >
@@ -57,14 +60,19 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                 <img 
                     src={product.imageUrl} 
                     alt={product.name} 
-                    className="w-full h-56 object-cover" 
+                    className={`w-full h-56 object-cover ${isOutOfStock ? 'grayscale-[0.5]' : ''}`}
                     loading="lazy"
                     decoding="async"
                     width="400"
                     height="224"
                 />
-                {product.isBestseller && (
+                {product.isBestseller && !isOutOfStock && (
                     <span className="absolute top-2 left-2 bg-brand-accent text-white text-xs font-semibold px-2 py-1 rounded">Bestseller</span>
+                )}
+                {isOutOfStock && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                        <span className="bg-red-600 text-white text-sm font-bold px-3 py-1 rounded">Out of Stock</span>
+                    </div>
                 )}
             </Link>
         </div>
@@ -83,8 +91,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </Link>
       <div className="p-4 pt-0 flex justify-between items-center">
         <p className="text-xl font-semibold text-brand-primary">{product.price.toLocaleString('en-NG', { style: 'currency', currency: 'NGN' })}</p>
-        <Button onClick={() => addToCart(product)} variant="primary" className="text-xs px-4 py-2">
-          Add to Cart
+        <Button 
+            onClick={() => addToCart(product)} 
+            variant="primary" 
+            className={`text-xs px-4 py-2 ${isOutOfStock ? 'bg-gray-400 cursor-not-allowed hover:bg-gray-400' : ''}`}
+            disabled={isOutOfStock}
+        >
+          {isOutOfStock ? 'Sold Out' : 'Add to Cart'}
         </Button>
       </div>
     </motion.div>

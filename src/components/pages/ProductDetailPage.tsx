@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,6 +8,7 @@ import { useCart } from '../../contexts/CartContext';
 import { useWishlist } from '../../contexts/WishlistContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
+import MetaTags from '../ui/MetaTags'; // Import
 
 type Tab = 'description' | 'ingredients' | 'usage';
 
@@ -46,6 +46,7 @@ const ProductDetailPage: React.FC = () => {
     }
 
     const inWishlist = isInWishlist(product.id);
+    const isOutOfStock = product.inStock === false;
     
     const averageRating = product.reviews.length > 0
     ? product.reviews.reduce((acc, review) => acc + review.rating, 0) / product.reviews.length
@@ -56,7 +57,9 @@ const ProductDetailPage: React.FC = () => {
         : product.price;
 
     const handleAddToCart = () => {
-        addToCart(product, quantity, selectedSize);
+        if (!isOutOfStock) {
+            addToCart(product, quantity, selectedSize);
+        }
     };
 
      const handleWishlistToggle = () => {
@@ -105,8 +108,12 @@ const ProductDetailPage: React.FC = () => {
 
     return (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <MetaTags 
+                title={product.name} 
+                description={product.description} 
+                image={product.imageUrl}
+            />
             <div className="grid grid-cols-1 md:grid-cols-5 gap-12 md:items-start">
-                
                 {/* Image Gallery */}
                 <motion.div 
                     className="md:col-span-2 order-1"
@@ -120,13 +127,18 @@ const ProductDetailPage: React.FC = () => {
                                 key={mainImage}
                                 src={mainImage} 
                                 alt={product.name} 
-                                className="w-full h-full object-cover" 
+                                className={`w-full h-full object-cover ${isOutOfStock ? 'grayscale-[0.5]' : ''}`} 
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                                 transition={{ duration: 0.3 }}
                             />
                         </AnimatePresence>
+                        {isOutOfStock && (
+                            <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                                <span className="bg-red-600 text-white text-lg font-bold px-6 py-2 rounded shadow-lg transform -rotate-12">Out of Stock</span>
+                            </div>
+                        )}
                     </div>
                     <div className="flex flex-wrap gap-2 justify-center">
                         {product.images.map((img, idx) => (
@@ -150,7 +162,12 @@ const ProductDetailPage: React.FC = () => {
                         transition={{ duration: 0.5, delay: 0.2 }}
                     >
                         <div>
-                            <h1 className="text-4xl font-serif font-bold text-brand-dark mb-2">{product.name}</h1>
+                            <div className="flex justify-between items-start">
+                                <h1 className="text-4xl font-serif font-bold text-brand-dark mb-2">{product.name}</h1>
+                                {isOutOfStock && (
+                                    <span className="bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-0.5 rounded">Out of Stock</span>
+                                )}
+                            </div>
                             <p className="text-gray-500">{product.categories.join(' & ')}</p>
                         </div>
                         <div className="flex items-center">
@@ -167,11 +184,12 @@ const ProductDetailPage: React.FC = () => {
                                         <button 
                                             key={size}
                                             onClick={() => setSelectedSize(size)}
+                                            disabled={isOutOfStock}
                                             className={`px-4 py-2 text-sm font-medium rounded-full border transition-colors ${
                                                 selectedSize === size
                                                 ? 'bg-brand-primary text-white border-brand-primary' 
                                                 : 'bg-white text-gray-700 hover:bg-gray-100 border-gray-300'
-                                            }`}
+                                            } ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         >
                                             {size}
                                         </button>
@@ -184,11 +202,25 @@ const ProductDetailPage: React.FC = () => {
                         
                         <div className="flex items-center space-x-4">
                             <div className="flex items-center border rounded-md">
-                                <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="px-3 py-2 text-gray-600 hover:bg-gray-100">-</button>
+                                <button 
+                                    onClick={() => setQuantity(q => Math.max(1, q - 1))} 
+                                    className="px-3 py-2 text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+                                    disabled={isOutOfStock}
+                                >-</button>
                                 <span className="px-4 py-2 font-semibold">{quantity}</span>
-                                <button onClick={() => setQuantity(q => q + 1)} className="px-3 py-2 text-gray-600 hover:bg-gray-100">+</button>
+                                <button 
+                                    onClick={() => setQuantity(q => q + 1)} 
+                                    className="px-3 py-2 text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+                                    disabled={isOutOfStock}
+                                >+</button>
                             </div>
-                            <Button onClick={handleAddToCart} className="flex-1">Add to Cart</Button>
+                            <Button 
+                                onClick={handleAddToCart} 
+                                className={`flex-1 ${isOutOfStock ? 'bg-gray-400 cursor-not-allowed hover:bg-gray-400' : ''}`}
+                                disabled={isOutOfStock}
+                            >
+                                {isOutOfStock ? 'Sold Out' : 'Add to Cart'}
+                            </Button>
                             <motion.button
                                 onClick={handleWishlistToggle}
                                 className="p-3 border rounded-md text-brand-dark hover:text-red-500"

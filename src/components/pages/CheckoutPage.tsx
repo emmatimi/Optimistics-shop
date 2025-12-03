@@ -5,53 +5,104 @@ import { useData } from '../../contexts/DataContext';
 import { useNavigate } from 'react-router-dom';
 import Button from '../ui/Button';
 import { useNotification } from '../../contexts/NotificationContext';
-import { motion, AnimatePresence } from 'framer-motion';
 import { sendOrderConfirmationEmail, sendPaymentReceivedEmail } from '../../utils/emailService';
 
-interface InputFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
+// NIGERIAN STATES LIST
+const NIGERIAN_STATES = [
+    "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno", "Cross River",
+    "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu", "Gombe", "Imo", "Jigawa", "Kaduna", "Kano", "Katsina",
+    "Kebbi", "Kogi", "Kwara", "Lagos", "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo", "Plateau",
+    "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara", "Abuja"
+];
+
+declare global {
+    interface Window {
+        MonnifySDK: any;
+    }
+}
+
+interface InputFieldProps extends React.InputHTMLAttributes<HTMLInputElement | HTMLSelectElement> {
     label: string;
     id: string;
     fullWidth?: boolean;
+    as?: 'select';
+    children?: React.ReactNode;
 }
 
-const InputField: React.FC<InputFieldProps> = ({ label, id, fullWidth = false, ...props }) => (
+const InputField: React.FC<InputFieldProps> = ({ label, id, fullWidth = false, as, children, ...props }) => (
     <div className={fullWidth ? 'col-span-2' : ''}>
         <label htmlFor={id} className="block text-sm font-medium text-gray-700">{label}</label>
-        <input
-            id={id}
-            name={id}
-            {...props}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-brand-primary focus:border-brand-primary disabled:bg-gray-100"
-        />
+        {as === 'select' ? (
+            <select
+                id={id}
+                name={id}
+                {...(props as React.SelectHTMLAttributes<HTMLSelectElement>)}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-brand-primary focus:border-brand-primary disabled:bg-gray-100"
+            >
+                {children}
+            </select>
+        ) : (
+            <input
+                id={id}
+                name={id}
+                {...(props as React.InputHTMLAttributes<HTMLInputElement>)}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-brand-primary focus:border-brand-primary disabled:bg-gray-100"
+            />
+        )}
     </div>
 );
 
 const CheckoutPage: React.FC = () => {
     const { cartItems, cartTotal, clearCart } = useCart();
     const { user } = useAuth();
-    const { addOrder } = useData();
+    const { addOrder, shippingConfig } = useData(); 
     const { showNotification } = useNotification();
     const navigate = useNavigate();
     
     const [email, setEmail] = useState('');
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
+    const [phone, setPhone] = useState('');
     const [address, setAddress] = useState('');
     const [city, setCity] = useState('');
     const [state, setState] = useState('');
     const [zip, setZip] = useState('');
     const [country, setCountry] = useState('Nigeria');
 
-    // Loyalty State
+    const [shippingFee, setShippingFee] = useState(0);
+
     const [useLoyalty, setUseLoyalty] = useState(false);
     const [pointsToRedeem, setPointsToRedeem] = useState(0);
 
     const availablePoints = user?.loyaltyPoints || 0;
     const maxRedeemable = Math.min(availablePoints, cartTotal);
     const discountAmount = useLoyalty ? pointsToRedeem : 0;
-    const finalTotal = Math.max(0, cartTotal - discountAmount); // Ensure never negative
+    
+    useEffect(() => {
+        if (!shippingConfig) {
+            setShippingFee(5000); 
+            return;
+        }
 
-    // Generate Order ID early for reference
+        if (cartTotal >= shippingConfig.freeShippingThreshold) {
+            setShippingFee(0);
+            return;
+        }
+
+        if (state) {
+            const stateRate = shippingConfig.rates.find(r => r.state === state);
+            if (stateRate) {
+                setShippingFee(stateRate.fee);
+            } else {
+                setShippingFee(shippingConfig.defaultFee);
+            }
+        } else {
+            setShippingFee(0);
+        }
+    }, [state, cartTotal, shippingConfig]);
+
+    const finalTotal = Math.max(0, cartTotal + shippingFee - discountAmount);
+
     const [currentOrderId] = useState(`ORD-${Math.floor(Math.random() * 1000000)}`);
 
     useEffect(() => {
@@ -62,13 +113,11 @@ const CheckoutPage: React.FC = () => {
         }
     }, [user]);
 
-    // Load Monnify Script Dynamically
     useEffect(() => {
         const script = document.createElement('script');
         script.src = "https://sdk.monnify.com/plugin/monnify.js";
         script.async = true;
         document.body.appendChild(script);
-
         return () => {
             if (document.body.contains(script)) {
                 document.body.removeChild(script);
@@ -84,8 +133,10 @@ const CheckoutPage: React.FC = () => {
             userId: user?.id,
             customerName: `${firstName} ${lastName}`,
             customerEmail: email,
+            customerPhone: phone,
             date: new Date().toISOString(),
             total: finalTotal,
+            shippingFee: shippingFee,
             status: 'Processing' as const,
             items: cartItems,
             shippingAddress: `${address}, ${city}, ${state}`,
@@ -95,11 +146,8 @@ const CheckoutPage: React.FC = () => {
 
         try {
             await addOrder(newOrder);
-            
-            // Email 1: Confirmation
             await sendOrderConfirmationEmail(newOrder);
             
-            // Email 2: Payment Receipt
             const txRef = response.transactionReference || response.paymentReference || "N/A";
             await sendPaymentReceivedEmail(newOrder, txRef);
             
@@ -118,8 +166,7 @@ const CheckoutPage: React.FC = () => {
     const handleFormSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         
-        // Basic Validation
-        if (!email || !firstName || !lastName || !address || !city) {
+        if (!email || !firstName || !lastName || !address || !city || !state || !phone) {
             showNotification('Please fill in all required shipping fields.', 'error');
             return;
         }
@@ -128,14 +175,11 @@ const CheckoutPage: React.FC = () => {
         const contractCode = (import.meta as any).env.VITE_MONNIFY_CONTRACT_CODE;
 
         if (!apiKey || !contractCode) {
-            showNotification('Payment gateway configuration missing. Check .env file.', 'error');
+            showNotification('Payment gateway config missing.', 'error');
             return;
         }
 
-        // Automatic detection of Test Mode vs Production Mode
         const isTestMode = apiKey.startsWith("MK_TEST");
-
-        console.log("Initializing Monnify...", { mode: isTestMode ? "TEST" : "LIVE", amount: finalTotal });
 
         if ((window as any).MonnifySDK) {
             (window as any).MonnifySDK.initialize({
@@ -144,18 +188,20 @@ const CheckoutPage: React.FC = () => {
                 reference: `${currentOrderId}-${Date.now()}`,
                 customerName: `${firstName} ${lastName}`,
                 customerEmail: email,
+                customerMobileNumber: phone,
                 apiKey: apiKey,
                 contractCode: contractCode,
                 paymentDescription: `Order ${currentOrderId}`,
                 isTestMode: isTestMode, 
                 metadata: {
                     "name": `${firstName} ${lastName}`,
+                    "phone": phone
                 },
-                onComplete: handleSuccessPayment,
-                onClose: handleClosePayment
+                onComplete: (response: any) => { handleSuccessPayment(response); },
+                onClose: () => { handleClosePayment(); } 
             });
         } else {
-            showNotification('Payment gateway failed to load. Please refresh and try again.', 'error');
+            showNotification('Payment gateway failed to load.', 'error');
         }
     };
 
@@ -174,40 +220,41 @@ const CheckoutPage: React.FC = () => {
                 <h1 className="text-3xl font-serif font-bold text-brand-dark mb-8 text-center">Checkout</h1>
                 <form onSubmit={handleFormSubmit}>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        {/* Shipping Forms */}
                         <div className="md:col-span-2 bg-white p-8 rounded-lg shadow-md">
                             <h2 className="text-xl font-semibold mb-6">Shipping Information</h2>
                             <div className="grid grid-cols-2 gap-6">
-                                <InputField label="First Name" id="firstName" type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
-                                <InputField label="Last Name" id="lastName" type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
-                                <InputField label="Email Address" id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={!!user} required fullWidth />
-                                <InputField label="Address" id="address" type="text" value={address} onChange={(e) => setAddress(e.target.value)} required fullWidth />
-                                <InputField label="City" id="city" type="text" value={city} onChange={(e) => setCity(e.target.value)} required />
-                                <InputField label="State" id="state" type="text" value={state} onChange={(e) => setState(e.target.value)} required />
-                                <InputField label="Zip Code" id="zip" type="text" value={zip} onChange={(e) => setZip(e.target.value)} required />
-                                <InputField label="Country" id="country" type="text" value={country} onChange={(e) => setCountry(e.target.value)} required />
-                            </div>
-                            <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-md">
-                                <h3 className="font-semibold text-blue-800 mb-2">Payment Method</h3>
-                                <p className="text-sm text-blue-600">You will be redirected to the secure <strong>Monnify</strong> gateway.</p>
+                                <InputField label="First Name" id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                                <InputField label="Last Name" id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                                <InputField label="Email" id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={!!user} required fullWidth />
+                                <InputField label="Phone" id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} required fullWidth placeholder="080..." />
+                                <InputField label="Address" id="address" value={address} onChange={(e) => setAddress(e.target.value)} required fullWidth />
+                                <InputField label="City" id="city" value={city} onChange={(e) => setCity(e.target.value)} required />
+                                
+                                <InputField 
+                                    label="State" 
+                                    id="state" 
+                                    as="select" 
+                                    value={state} 
+                                    onChange={(e) => setState(e.target.value)} 
+                                    required
+                                >
+                                    <option value="">Select State</option>
+                                    {NIGERIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                                </InputField>
+
+                                <InputField label="Zip Code" id="zip" value={zip} onChange={(e) => setZip(e.target.value)} required />
+                                <InputField label="Country" id="country" value={country} onChange={(e) => setCountry(e.target.value)} required />
                             </div>
                         </div>
 
-                        {/* Order Summary */}
                         <div className="md:col-span-1">
                             <div className="bg-white p-6 rounded-lg shadow-md sticky top-24">
-                                <h2 className="text-xl font-semibold mb-4 border-b pb-4">Your Order</h2>
+                                <h2 className="text-xl font-semibold mb-4 border-b pb-4">Order Summary</h2>
                                 <div className="space-y-4 mb-4 max-h-64 overflow-y-auto">
                                     {cartItems.map(item => (
-                                        <div key={item.id} className="flex justify-between items-center text-sm">
-                                            <div className="flex items-center">
-                                                <img src={item.imageUrl} alt={item.name} className="w-12 h-12 object-cover rounded-md mr-3" />
-                                                <div>
-                                                    <p className="font-semibold">{item.name}</p>
-                                                    <p className="text-gray-500">Qty: {item.quantity}</p>
-                                                </div>
-                                            </div>
-                                            <p>{(item.price * item.quantity).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' })}</p>
+                                        <div key={item.id} className="flex justify-between text-sm">
+                                            <span>{item.name} (x{item.quantity})</span>
+                                            <span>{(item.price * item.quantity).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' })}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -218,17 +265,13 @@ const CheckoutPage: React.FC = () => {
                                     </div>
                                     <div className="flex justify-between">
                                         <span>Shipping</span>
-                                        <span className="text-green-600">FREE</span>
+                                        <span className={shippingFee === 0 ? "text-green-600 font-bold" : ""}>
+                                            {shippingFee === 0 ? "FREE" : `₦${shippingFee.toLocaleString()}`}
+                                        </span>
                                     </div>
 
-                                    {/* Loyalty Points Section */}
                                     {availablePoints > 0 && (
                                         <div className="bg-brand-secondary/20 p-3 rounded-md mt-4 border border-brand-primary/20">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <h3 className="font-semibold text-brand-primary text-sm">Loyalty Rewards</h3>
-                                                <span className="text-xs bg-brand-primary text-white px-2 py-0.5 rounded-full">{availablePoints} pts available</span>
-                                            </div>
-                                            
                                             <div className="flex items-center space-x-2">
                                                 <input 
                                                     type="checkbox" 
@@ -238,40 +281,26 @@ const CheckoutPage: React.FC = () => {
                                                         setUseLoyalty(e.target.checked);
                                                         if(e.target.checked) setPointsToRedeem(maxRedeemable);
                                                     }}
-                                                    className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
+                                                    className="h-4 w-4 rounded"
                                                 />
-                                                <label htmlFor="usePoints" className="text-sm text-gray-700">Redeem Points</label>
+                                                <label htmlFor="usePoints" className="text-sm">Redeem Points</label>
                                             </div>
-
-                                            <AnimatePresence>
-                                                {useLoyalty && (
-                                                    <motion.div 
-                                                        initial={{ height: 0, opacity: 0 }}
-                                                        animate={{ height: 'auto', opacity: 1 }}
-                                                        exit={{ height: 0, opacity: 0 }}
-                                                        className="overflow-hidden"
-                                                    >
-                                                        <div className="mt-2 text-sm">
-                                                            <div className="flex justify-between items-center mb-1">
-                                                                <label className="text-gray-600">Points to use:</label>
-                                                                <span className="font-medium text-brand-dark">- ₦{pointsToRedeem.toLocaleString()}</span>
-                                                            </div>
-                                                            <input 
-                                                                type="range" 
-                                                                min="0" 
-                                                                max={maxRedeemable} 
-                                                                value={pointsToRedeem} 
-                                                                onChange={(e) => setPointsToRedeem(parseInt(e.target.value))}
-                                                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-brand-primary"
-                                                            />
-                                                            <div className="flex justify-between text-xs text-gray-500 mt-1">
-                                                                <span>0</span>
-                                                                <span>{maxRedeemable}</span>
-                                                            </div>
-                                                        </div>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
+                                            {useLoyalty && (
+                                                <div className="mt-2">
+                                                    <div className="flex justify-between text-xs mb-1">
+                                                        <span>Discount:</span>
+                                                        <span className="font-bold">-₦{pointsToRedeem.toLocaleString()}</span>
+                                                    </div>
+                                                    <input 
+                                                        type="range" 
+                                                        min="0" 
+                                                        max={maxRedeemable} 
+                                                        value={pointsToRedeem} 
+                                                        onChange={(e) => setPointsToRedeem(parseInt(e.target.value))}
+                                                        className="w-full h-2 bg-gray-200 rounded-lg cursor-pointer"
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
@@ -283,9 +312,7 @@ const CheckoutPage: React.FC = () => {
                                 <Button type="submit" variant="primary" className="w-full mt-6">
                                     Pay {finalTotal.toLocaleString('en-NG', { style: 'currency', currency: 'NGN' })}
                                 </Button>
-                                <div className="mt-4 flex justify-center">
-                                    <img src="https://monnify.com/images/logo.svg" alt="Secured by Monnify" className="h-6 opacity-60" />
-                                </div>
+                                <div className="mt-4 flex justify-center"><img src="https://monnify.com/images/logo.svg" alt="Monnify" className="h-6 opacity-60" /></div>
                             </div>
                         </div>
                     </div>

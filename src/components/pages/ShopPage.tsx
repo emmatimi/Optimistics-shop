@@ -1,8 +1,8 @@
-
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useData } from '../../contexts/DataContext';
 import ProductCard from '../ProductCard';
+import MetaTags from '../ui/MetaTags'; // Import
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -39,6 +39,10 @@ const ShopPage: React.FC = () => {
 
   return (
     <div className="bg-brand-light">
+        <MetaTags 
+            title="Shop Natural Oils" 
+            description="Browse our collection of premium, cold-pressed oils for skincare and haircare." 
+        />
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="text-center mb-12">
                 <h1 className="text-4xl font-serif font-bold text-brand-dark">Our Collection</h1>

@@ -1,4 +1,3 @@
-
 export interface Review {
   id: number;
   author: string;
@@ -22,6 +21,7 @@ export interface Product {
   usage: string;
   reviews: Review[];
   isBestseller?: boolean;
+  inStock?: boolean;
   tags: string[];
 }
 
@@ -68,23 +68,37 @@ export interface Order {
     userId?: string;
     customerName: string;
     customerEmail: string;
+    customerPhone: string;
     date: string;
     total: number;
+    shippingFee: number; // New field
     status: 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
     items: CartItem[];
     shippingAddress: string;
     pointsRedeemed?: number;
     discountApplied?: number;
 }
-//  Interface for incoming customer stories
+
 export interface UserSubmission {
     id: string;
     type: 'testimonial' | 'result';
     customerName: string;
     email: string;
-    content: string; 
-    imageUrl?: string; 
+    content: string;
+    imageUrl?: string;
     location?: string;
     date: string;
     status: 'pending' | 'approved' | 'rejected';
+}
+
+// New: Shipping Configuration
+export interface ShippingRate {
+    state: string;
+    fee: number;
+}
+
+export interface ShippingConfig {
+    defaultFee: number;
+    freeShippingThreshold: number; // Order total above this gets free shipping
+    rates: ShippingRate[];
 }

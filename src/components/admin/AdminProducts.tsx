@@ -1,31 +1,29 @@
+
 import React, { useState } from 'react';
 import { useData } from '../../contexts/DataContext';
-import { useNotification } from '../../contexts/NotificationContext';
 import Button from '../ui/Button';
 import type { Product } from '../../types';
 import ImageUpload from '../ui/ImageUpload';
-import ConfirmModal from '../ui/ConfirmModal';
 
 const AdminProducts: React.FC = () => {
     const { products, addProduct, updateProduct, deleteProduct } = useData();
-    const { showNotification } = useNotification();
     const [isEditing, setIsEditing] = useState(false);
+    // Use any for form state to handle string inputs for array fields temporarily
     const [currentProduct, setCurrentProduct] = useState<any>({});
-    
-    // Confirm Modal State
-    const [confirmOpen, setConfirmOpen] = useState(false);
-    const [deleteId, setDeleteId] = useState<string | null>(null);
 
+    // Simple ID generator
     const generateId = () => Math.random().toString(36).substr(2, 9);
 
     const handleEdit = (product: Product) => {
+        // Convert array fields to strings for the input form
         setCurrentProduct({
             ...product,
             ingredients: product.ingredients ? product.ingredients.join(', ') : '',
             benefits: product.benefits ? product.benefits.join(', ') : '',
             tags: product.tags ? product.tags.join(', ') : '',
-            categories: product.categories || ['Skincare'],
-            isBestseller: product.isBestseller || false
+            categories: product.categories || ['Skincare'], // Default to array
+            isBestseller: product.isBestseller || false,
+            inStock: product.inStock !== false // Default to true if undefined
         });
         setIsEditing(true);
     };
@@ -45,28 +43,19 @@ const AdminProducts: React.FC = () => {
             usage: '',
             reviews: [],
             tags: '',
-            isBestseller: false
+            isBestseller: false,
+            inStock: true
         });
         setIsEditing(true);
     };
 
-    const handleDeleteClick = (id: string) => {
-        setDeleteId(id);
-        setConfirmOpen(true);
-    };
-
-    const confirmDelete = async () => {
-        if (deleteId) {
-            try {
-                await deleteProduct(deleteId);
-                showNotification('Product deleted successfully.', 'success');
-            } catch (error) {
-                showNotification('Failed to delete product.', 'error');
-            }
+    const handleDelete = (id: string) => {
+        if(window.confirm('Are you sure you want to delete this product?')) {
+            deleteProduct(id);
         }
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         
         const productData: Product = {
@@ -78,21 +67,14 @@ const AdminProducts: React.FC = () => {
             images: currentProduct.imageUrl ? [currentProduct.imageUrl] : []
         };
 
-        try {
-            if (currentProduct.id) {
-                await updateProduct(productData);
-                showNotification('Product updated successfully!', 'success');
-            } else {
-                await addProduct({ ...productData, id: generateId() });
-                showNotification('New product created!', 'success');
-            }
-            setIsEditing(false);
-        } catch (error) {
-            showNotification('Failed to save product.', 'error');
+        if (currentProduct.id) {
+            updateProduct(productData);
+        } else {
+            addProduct({ ...productData, id: generateId() });
         }
+        setIsEditing(false);
     };
 
-    // ... (handleInputChange and handleCheckboxChange remain same)
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setCurrentProduct((prev: any) => ({ ...prev, [name]: value }));
@@ -105,11 +87,9 @@ const AdminProducts: React.FC = () => {
 
     if (isEditing) {
         return (
-            // ... (Form JSX remains mostly same)
             <div className="bg-white p-8 rounded-lg shadow-md max-w-3xl mx-auto">
                 <h2 className="text-2xl font-bold mb-6">{currentProduct.id ? 'Edit Product' : 'Add New Product'}</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    {/* ... Inputs ... */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Product Name</label>
@@ -165,18 +145,34 @@ const AdminProducts: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="flex items-center mt-4">
-                        <input
-                            id="isBestseller"
-                            name="isBestseller"
-                            type="checkbox"
-                            checked={currentProduct.isBestseller || false}
-                            onChange={handleCheckboxChange}
-                            className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
-                        />
-                        <label htmlFor="isBestseller" className="ml-2 block text-sm text-gray-900">
-                            Mark as Best Seller
-                        </label>
+                    <div className="flex flex-col sm:flex-row gap-6 mt-4">
+                        <div className="flex items-center">
+                            <input
+                                id="isBestseller"
+                                name="isBestseller"
+                                type="checkbox"
+                                checked={currentProduct.isBestseller || false}
+                                onChange={handleCheckboxChange}
+                                className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
+                            />
+                            <label htmlFor="isBestseller" className="ml-2 block text-sm text-gray-900">
+                                Mark as Best Seller
+                            </label>
+                        </div>
+
+                        <div className="flex items-center">
+                            <input
+                                id="inStock"
+                                name="inStock"
+                                type="checkbox"
+                                checked={currentProduct.inStock !== false}
+                                onChange={handleCheckboxChange}
+                                className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
+                            />
+                            <label htmlFor="inStock" className="ml-2 block text-sm text-gray-900">
+                                Available in Stock
+                            </label>
+                        </div>
                     </div>
 
                     <div className="flex justify-end space-x-3 mt-6">
@@ -200,7 +196,7 @@ const AdminProducts: React.FC = () => {
                     <thead className="bg-gray-50">
                         <tr>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
@@ -227,28 +223,28 @@ const AdminProducts: React.FC = () => {
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {product.categories.join(', ')}
+                                    {product.inStock !== false ? (
+                                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                            In Stock
+                                        </span>
+                                    ) : (
+                                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                            Out of Stock
+                                        </span>
+                                    )}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     {product.price.toLocaleString('en-NG', { style: 'currency', currency: 'NGN' })}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <button onClick={() => handleEdit(product)} className="text-brand-primary hover:text-brand-dark mr-4">Edit</button>
-                                    <button onClick={() => handleDeleteClick(product.id)} className="text-red-600 hover:text-red-900">Delete</button>
+                                    <button onClick={() => handleDelete(product.id)} className="text-red-600 hover:text-red-900">Delete</button>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
             </div>
-
-            <ConfirmModal 
-                isOpen={confirmOpen}
-                onClose={() => setConfirmOpen(false)}
-                onConfirm={confirmDelete}
-                title="Delete Product"
-                message="Are you sure you want to delete this product? This action cannot be undone."
-            />
         </div>
     );
 };

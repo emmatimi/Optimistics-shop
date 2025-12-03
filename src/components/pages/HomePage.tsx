@@ -1,9 +1,9 @@
-
 import React from 'react';
 import { motion } from 'framer-motion';
 import Button from '../ui/Button';
 import ProductCard from '../ProductCard';
 import { useData } from '../../contexts/DataContext';
+import MetaTags from '../ui/MetaTags'; // Import
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -165,7 +165,7 @@ const TestimonialsSection = () => {
                 >
                     {testimonials.slice(0, 3).map(testimonial => (
                         <motion.div key={testimonial.id} variants={itemVariants} className="bg-white p-6 rounded-lg shadow-md text-center">
-                            <img src={testimonial.imageUrl} alt={testimonial.name} className="w-20 h-20 rounded-full mx-auto mb-4 object-cover" />
+                            <img src={testimonial.imageUrl} alt={testimonial.name} className="w-20 h-20 rounded-full mx-auto mb-4" />
                             <p className="text-gray-600 italic mb-4">"{testimonial.quote}"</p>
                             <p className="font-semibold text-brand-dark">{testimonial.name}</p>
                             <p className="text-sm text-gray-500">{testimonial.location}</p>
@@ -183,6 +183,10 @@ const TestimonialsSection = () => {
 const HomePage: React.FC = () => {
     return (
         <div>
+            <MetaTags 
+                title="Natural Oils for Skin & Hair" 
+                description="Discover pure, cold-pressed oils for glowing skin and healthy hair growth. Shop Optimistics Naturals." 
+            />
             <HeroSection />
             <BestSellersSection />
             <WhyChooseUsSection />
